@@ -8,5 +8,8 @@ export default (config: UserConfig) => {
         '@': '/src',
       },
     },
+    server: {
+        allowedHosts: ['viz-cms.build-time.md'],
+    },
   });
 };

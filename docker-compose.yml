@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  strapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: viz-cms:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_CLIENT: ${DATABASE_CLIENT}
+      DATABASE_URL: ${DATABASE_URL}
+      NODE_ENV: ${NODE_ENV:-production}
+    ports:
+      - '1337:1337'
+    volumes:
+      - ./public/uploads:/app/public/uploads
+    depends_on:
+      - postgres
+    networks:
+      - strapi-network
+
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-postgres}
+      POSTGRES_DB: ${DATABASE_NAME:-strapi}
+    volumes:
+      - strapi-data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    networks:
+      - strapi-network
+
+volumes:
+  strapi-data:
+
+networks:
+  strapi-network:
+    driver: bridge

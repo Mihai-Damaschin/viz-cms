@@ -1,0 +1,16 @@
+{
+  "collectionName": "components_key_features_key_features",
+  "info": {
+    "displayName": "Key features"
+  },
+  "options": {},
+  "attributes": {
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    }
+  },
+  "config": {}
+}

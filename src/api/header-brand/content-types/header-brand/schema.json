@@ -1,0 +1,38 @@
+{
+  "kind": "collectionType",
+  "collectionName": "header_brands",
+  "info": {
+    "singularName": "header-brand",
+    "pluralName": "header-brands",
+    "displayName": "Header brand"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {
+    "i18n": {
+      "localized": true
+    }
+  },
+  "attributes": {
+    "name": {
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "products": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::product.product"
+    },
+    "brand": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::brand.brand",
+      "inversedBy": "header_brands"
+    }
+  }
+}

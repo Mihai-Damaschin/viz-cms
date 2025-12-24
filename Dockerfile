@@ -1,66 +1,53 @@
-# Multi-stage Dockerfile for Strapi Production
+# Simple Dockerfile for Strapi (Alternative)
+# Single-stage build - easier to debug, slightly larger image
 
-# Stage 1: Build
-FROM node:20-alpine AS builder
+FROM node:20-alpine
 
-# Set working directory
 WORKDIR /app
+
+# Install all required dependencies
+RUN apk add --no-cache \
+    build-base \
+    gcc \
+    g++ \
+    make \
+    autoconf \
+    automake \
+    libtool \
+    pkgconfig \
+    zlib-dev \
+    libpng-dev \
+    vips-dev \
+    libc6-compat \
+    python3 \
+    git
 
 # Copy package files
-COPY package*.json ./
+COPY package.json yarn.lock ./
 
 # Install dependencies
-RUN npm ci
+RUN yarn install --frozen-lockfile --network-timeout 100000
 
-# Copy application code
+# Copy application files
 COPY . .
 
-# Set environment to production
+# Set environment
 ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV PORT=1337
 
-# Build Strapi admin panel
-RUN npm run build
+# Build the admin panel
+RUN yarn build
 
-# Stage 2: Production
-FROM node:20-alpine AS production
+# Create directories for uploads
+RUN mkdir -p public/uploads .tmp
 
-# Set working directory
-WORKDIR /app
-
-# Install production dependencies only
-COPY package*.json ./
-RUN npm ci --only=production
-
-# Copy built application from builder stage
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/build ./build
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/config ./config
-COPY --from=builder /app/database ./database
-COPY --from=builder /app/src ./src
-COPY --from=builder /app/favicon.png ./favicon.png
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/tsconfig.json ./tsconfig.json
-
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S strapi -u 1001
-
-# Change ownership of the application files
-RUN chown -R strapi:nodejs /app
-
-# Switch to non-root user
-USER strapi
-
-# Set environment to production
-ENV NODE_ENV=production
-
-# Expose Strapi port
+# Expose port
 EXPOSE 1337
 
-# Health check
+# Health check - Accept both 200 and 204 status codes
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:1337/_health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+    CMD node -e "require('http').get('http://localhost:1337/_health', (r) => {process.exit((r.statusCode === 200 || r.statusCode === 204) ? 0 : 1)})"
 
-# Start Strapi
-CMD ["npm", "run", "start"]
+# Start the application
+CMD ["yarn", "start"]

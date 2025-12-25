@@ -45,6 +45,19 @@
           "localized": true
         }
       }
+    },
+    "type": {
+      "type": "enumeration",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      },
+      "enum": [
+        "net",
+        "sill",
+        "glass"
+      ]
     }
   }
 }

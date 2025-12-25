@@ -38,20 +38,6 @@
         "audios"
       ]
     },
-    "type": {
-      "type": "enumeration",
-      "pluginOptions": {
-        "i18n": {
-          "localized": true
-        }
-      },
-      "enum": [
-        "handle",
-        "sill",
-        "net",
-        "glass"
-      ]
-    },
     "description": {
       "type": "text",
       "pluginOptions": {

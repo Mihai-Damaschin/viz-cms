@@ -475,12 +475,6 @@ export interface ApiAccessoryAccessory extends Struct.CollectionTypeSchema {
         };
       }>;
     publishedAt: Schema.Attribute.DateTime;
-    type: Schema.Attribute.Enumeration<['handle', 'sill', 'net', 'glass']> &
-      Schema.Attribute.SetPluginOptions<{
-        i18n: {
-          localized: true;
-        };
-      }>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -696,6 +690,38 @@ export interface ApiGalleryGallery extends Struct.CollectionTypeSchema {
       'images' | 'files' | 'videos' | 'audios',
       true
     >;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiHardwareItemHardwareItem
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'hardware_items';
+  info: {
+    displayName: 'Hardware';
+    pluralName: 'hardware-items';
+    singularName: 'hardware-item';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    cover_photo: Schema.Attribute.Media<
+      'images' | 'files' | 'videos' | 'audios'
+    >;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::hardware-item.hardware-item'
+    > &
+      Schema.Attribute.Private;
+    name: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -1458,6 +1484,7 @@ declare module '@strapi/strapi' {
       'api::case-study.case-study': ApiCaseStudyCaseStudy;
       'api::color.color': ApiColorColor;
       'api::gallery.gallery': ApiGalleryGallery;
+      'api::hardware-item.hardware-item': ApiHardwareItemHardwareItem;
       'api::header-brand.header-brand': ApiHeaderBrandHeaderBrand;
       'api::product-category.product-category': ApiProductCategoryProductCategory;
       'api::product-type.product-type': ApiProductTypeProductType;

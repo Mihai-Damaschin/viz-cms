@@ -885,10 +885,6 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
     };
   };
   attributes: {
-    accessories: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::accessory.accessory'
-    >;
     colors: Schema.Attribute.Relation<'oneToMany', 'api::color.color'>;
     cover_image: Schema.Attribute.Media<
       'images' | 'files' | 'videos' | 'audios'
@@ -913,6 +909,10 @@ export interface ApiProductProduct extends Struct.CollectionTypeSchema {
           localized: true;
         };
       }>;
+    hardware: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::hardware-item.hardware-item'
+    >;
     locale: Schema.Attribute.String;
     localizations: Schema.Attribute.Relation<
       'oneToMany',

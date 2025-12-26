@@ -35,7 +35,7 @@ class RevalidationService {
 
     try {
       const url = `${frontendUrl}/api/revalidate`;
-      const headers: HeadersInit = {
+      const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
 

@@ -1,5 +1,5 @@
 import type { Core } from '@strapi/strapi';
-import { createRevalidationService, getAvailableLocales } from './utils/revalidation';
+import { createRevalidationService } from './utils/revalidation';
 
 export default {
   /**
@@ -20,27 +20,6 @@ export default {
   async bootstrap({ strapi }: { strapi: Core.Strapi }) {
     const revalidationService = createRevalidationService();
 
-    /**
-     * Helper function to trigger revalidation with proper locale handling
-     */
-    const triggerRevalidation = async (
-      entity: any,
-      entityType: string,
-      pathGenerator: (entity: any, locales: string[]) => string[]
-    ) => {
-      const locales = await getAvailableLocales(strapi);
-      const paths = pathGenerator(entity, locales);
-
-      if (paths.length > 0) {
-        await revalidationService.revalidate({
-          paths,
-          entityType,
-          entityId: entity.id,
-          locale: entity.locale,
-        });
-      }
-    };
-
     // ============================================================================
     // PRODUCT LIFECYCLE HOOKS
     // ============================================================================
@@ -49,23 +28,17 @@ export default {
 
       async afterCreate(event) {
         const { result } = event;
-        await triggerRevalidation(result, 'product', (product, locales) =>
-          revalidationService.getProductPaths(product, locales)
-        );
+        await revalidationService.revalidateProduct(result.slug, result.locale);
       },
 
       async afterUpdate(event) {
         const { result } = event;
-        await triggerRevalidation(result, 'product', (product, locales) =>
-          revalidationService.getProductPaths(product, locales)
-        );
+        await revalidationService.revalidateProduct(result.slug, result.locale);
       },
 
       async afterDelete(event) {
         const { result } = event;
-        await triggerRevalidation(result, 'product', (product, locales) =>
-          revalidationService.getProductPaths(product, locales)
-        );
+        await revalidationService.revalidateProduct(result.slug, result.locale);
       },
     });
 
@@ -77,23 +50,17 @@ export default {
 
       async afterCreate(event) {
         const { result } = event;
-        await triggerRevalidation(result, 'brand', (brand, locales) =>
-          revalidationService.getBrandPaths(brand, locales)
-        );
+        await revalidationService.revalidateBrand(result.slug, result.locale);
       },
 
       async afterUpdate(event) {
         const { result } = event;
-        await triggerRevalidation(result, 'brand', (brand, locales) =>
-          revalidationService.getBrandPaths(brand, locales)
-        );
+        await revalidationService.revalidateBrand(result.slug, result.locale);
       },
 
       async afterDelete(event) {
         const { result } = event;
-        await triggerRevalidation(result, 'brand', (brand, locales) =>
-          revalidationService.getBrandPaths(brand, locales)
-        );
+        await revalidationService.revalidateBrand(result.slug, result.locale);
       },
     });
 
@@ -105,239 +72,140 @@ export default {
 
       async afterCreate(event) {
         const { result } = event;
-        await triggerRevalidation(result, 'case-study', (caseStudy, locales) =>
-          revalidationService.getCaseStudyPaths(caseStudy, locales)
-        );
+        await revalidationService.revalidateCaseStudy(result.slug, result.locale);
       },
 
       async afterUpdate(event) {
         const { result } = event;
-        await triggerRevalidation(result, 'case-study', (caseStudy, locales) =>
-          revalidationService.getCaseStudyPaths(caseStudy, locales)
-        );
+        await revalidationService.revalidateCaseStudy(result.slug, result.locale);
       },
 
       async afterDelete(event) {
         const { result } = event;
-        await triggerRevalidation(result, 'case-study', (caseStudy, locales) =>
-          revalidationService.getCaseStudyPaths(caseStudy, locales)
-        );
+        await revalidationService.revalidateCaseStudy(result.slug, result.locale);
       },
     });
 
     // ============================================================================
-    // ACCESSORY LIFECYCLE HOOKS
+    // ACCESSORY LIFECYCLE HOOKS - Revalidate home page
     // ============================================================================
     strapi.db.lifecycles.subscribe({
       models: ['api::accessory.accessory'],
 
       async afterCreate(event) {
         const { result } = event;
-        await triggerRevalidation(result, 'accessory', (accessory, locales) =>
-          revalidationService.getAccessoryPaths(accessory, locales)
-        );
+        await revalidationService.revalidateHome(result.locale);
       },
 
       async afterUpdate(event) {
         const { result } = event;
-        await triggerRevalidation(result, 'accessory', (accessory, locales) =>
-          revalidationService.getAccessoryPaths(accessory, locales)
-        );
+        await revalidationService.revalidateHome(result.locale);
       },
 
       async afterDelete(event) {
         const { result } = event;
-        await triggerRevalidation(result, 'accessory', (accessory, locales) =>
-          revalidationService.getAccessoryPaths(accessory, locales)
-        );
+        await revalidationService.revalidateHome(result.locale);
       },
     });
 
     // ============================================================================
-    // GALLERY LIFECYCLE HOOKS
+    // GALLERY LIFECYCLE HOOKS - Revalidate home page
     // ============================================================================
     strapi.db.lifecycles.subscribe({
       models: ['api::gallery.gallery'],
 
-      async afterCreate(event) {
-        const { result } = event;
-        await triggerRevalidation(result, 'gallery', (gallery, locales) =>
-          revalidationService.getGalleryPaths(gallery, locales)
-        );
+      async afterCreate() {
+        await revalidationService.revalidateHome();
       },
 
-      async afterUpdate(event) {
-        const { result } = event;
-        await triggerRevalidation(result, 'gallery', (gallery, locales) =>
-          revalidationService.getGalleryPaths(gallery, locales)
-        );
+      async afterUpdate() {
+        await revalidationService.revalidateHome();
       },
 
-      async afterDelete(event) {
-        const { result } = event;
-        await triggerRevalidation(result, 'gallery', (gallery, locales) =>
-          revalidationService.getGalleryPaths(gallery, locales)
-        );
+      async afterDelete() {
+        await revalidationService.revalidateHome();
       },
     });
 
     // ============================================================================
-    // COLOR LIFECYCLE HOOKS (affects Products)
+    // COLOR LIFECYCLE HOOKS (affects Products) - Revalidate home page
     // ============================================================================
     strapi.db.lifecycles.subscribe({
       models: ['api::color.color'],
 
-      async afterCreate(event) {
-        const { result } = event;
-        const locales = await getAvailableLocales(strapi);
-        const paths = revalidationService.getGlobalPaths(locales);
-        await revalidationService.revalidate({
-          paths,
-          entityType: 'color',
-          entityId: result.id,
-        });
+      async afterCreate() {
+        await revalidationService.revalidateHome();
       },
 
-      async afterUpdate(event) {
-        const { result } = event;
-        const locales = await getAvailableLocales(strapi);
-        const paths = revalidationService.getGlobalPaths(locales);
-        await revalidationService.revalidate({
-          paths,
-          entityType: 'color',
-          entityId: result.id,
-        });
+      async afterUpdate() {
+        await revalidationService.revalidateHome();
       },
 
-      async afterDelete(event) {
-        const { result } = event;
-        const locales = await getAvailableLocales(strapi);
-        const paths = revalidationService.getGlobalPaths(locales);
-        await revalidationService.revalidate({
-          paths,
-          entityType: 'color',
-          entityId: result.id,
-        });
+      async afterDelete() {
+        await revalidationService.revalidateHome();
       },
     });
 
     // ============================================================================
-    // HARDWARE ITEM LIFECYCLE HOOKS (affects Products)
+    // HARDWARE ITEM LIFECYCLE HOOKS (affects Products) - Revalidate home page
     // ============================================================================
     strapi.db.lifecycles.subscribe({
       models: ['api::hardware-item.hardware-item'],
 
-      async afterCreate(event) {
-        const { result } = event;
-        const locales = await getAvailableLocales(strapi);
-        const paths = revalidationService.getGlobalPaths(locales);
-        await revalidationService.revalidate({
-          paths,
-          entityType: 'hardware-item',
-          entityId: result.id,
-        });
+      async afterCreate() {
+        await revalidationService.revalidateHome();
       },
 
-      async afterUpdate(event) {
-        const { result } = event;
-        const locales = await getAvailableLocales(strapi);
-        const paths = revalidationService.getGlobalPaths(locales);
-        await revalidationService.revalidate({
-          paths,
-          entityType: 'hardware-item',
-          entityId: result.id,
-        });
+      async afterUpdate() {
+        await revalidationService.revalidateHome();
       },
 
-      async afterDelete(event) {
-        const { result } = event;
-        const locales = await getAvailableLocales(strapi);
-        const paths = revalidationService.getGlobalPaths(locales);
-        await revalidationService.revalidate({
-          paths,
-          entityType: 'hardware-item',
-          entityId: result.id,
-        });
+      async afterDelete() {
+        await revalidationService.revalidateHome();
       },
     });
 
     // ============================================================================
-    // PRODUCT CATEGORY LIFECYCLE HOOKS
+    // PRODUCT CATEGORY LIFECYCLE HOOKS - Revalidate home page
     // ============================================================================
     strapi.db.lifecycles.subscribe({
       models: ['api::product-category.product-category'],
 
       async afterCreate(event) {
         const { result } = event;
-        const locales = await getAvailableLocales(strapi);
-        const paths = revalidationService.getGlobalPaths(locales);
-        await revalidationService.revalidate({
-          paths,
-          entityType: 'product-category',
-          entityId: result.id,
-        });
+        await revalidationService.revalidateHome(result.locale);
       },
 
       async afterUpdate(event) {
         const { result } = event;
-        const locales = await getAvailableLocales(strapi);
-        const paths = revalidationService.getGlobalPaths(locales);
-        await revalidationService.revalidate({
-          paths,
-          entityType: 'product-category',
-          entityId: result.id,
-        });
+        await revalidationService.revalidateHome(result.locale);
       },
 
       async afterDelete(event) {
         const { result } = event;
-        const locales = await getAvailableLocales(strapi);
-        const paths = revalidationService.getGlobalPaths(locales);
-        await revalidationService.revalidate({
-          paths,
-          entityType: 'product-category',
-          entityId: result.id,
-        });
+        await revalidationService.revalidateHome(result.locale);
       },
     });
 
     // ============================================================================
-    // PRODUCT TYPE LIFECYCLE HOOKS
+    // PRODUCT TYPE LIFECYCLE HOOKS - Revalidate home page
     // ============================================================================
     strapi.db.lifecycles.subscribe({
       models: ['api::product-type.product-type'],
 
       async afterCreate(event) {
         const { result } = event;
-        const locales = await getAvailableLocales(strapi);
-        const paths = revalidationService.getGlobalPaths(locales);
-        await revalidationService.revalidate({
-          paths,
-          entityType: 'product-type',
-          entityId: result.id,
-        });
+        await revalidationService.revalidateHome(result.locale);
       },
 
       async afterUpdate(event) {
         const { result } = event;
-        const locales = await getAvailableLocales(strapi);
-        const paths = revalidationService.getGlobalPaths(locales);
-        await revalidationService.revalidate({
-          paths,
-          entityType: 'product-type',
-          entityId: result.id,
-        });
+        await revalidationService.revalidateHome(result.locale);
       },
 
       async afterDelete(event) {
         const { result } = event;
-        const locales = await getAvailableLocales(strapi);
-        const paths = revalidationService.getGlobalPaths(locales);
-        await revalidationService.revalidate({
-          paths,
-          entityType: 'product-type',
-          entityId: result.id,
-        });
+        await revalidationService.revalidateHome(result.locale);
       },
     });
 

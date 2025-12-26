@@ -2,13 +2,12 @@ import type { Core } from '@strapi/strapi';
 
 interface RevalidationConfig {
   frontendUrl: string;
-  revalidateSecret?: string;
+  revalidateToken?: string;
 }
 
 interface RevalidationPayload {
-  paths: string[];
-  entityType: string;
-  entityId: number;
+  type: string;
+  slug?: string;
   locale?: string;
 }
 
@@ -26,7 +25,7 @@ class RevalidationService {
    * Call the Next.js revalidate API endpoint
    */
   async revalidate(payload: RevalidationPayload): Promise<void> {
-    const { frontendUrl, revalidateSecret } = this.config;
+    const { frontendUrl, revalidateToken } = this.config;
 
     if (!frontendUrl) {
       console.warn('[Revalidation] FRONTEND_URL not configured, skipping revalidation');
@@ -39,11 +38,11 @@ class RevalidationService {
         'Content-Type': 'application/json',
       };
 
-      if (revalidateSecret) {
-        headers['x-revalidate-secret'] = revalidateSecret;
+      if (revalidateToken) {
+        headers['Authorization'] = `Bearer ${revalidateToken}`;
       }
 
-      console.log(`[Revalidation] Calling ${url} with paths:`, payload.paths);
+      console.log(`[Revalidation] Calling ${url} with type: ${payload.type}, slug: ${payload.slug}, locale: ${payload.locale}`);
 
       const response = await fetch(url, {
         method: 'POST',
@@ -65,138 +64,55 @@ class RevalidationService {
   }
 
   /**
-   * Generate revalidation paths for a Product entity
+   * Revalidate a product entity
    */
-  getProductPaths(product: any, locales: string[]): string[] {
-    const paths: string[] = [];
-
-    if (!product.slug) {
-      return paths;
-    }
-
-    // Generate paths for all locales
-    for (const locale of locales) {
-      paths.push(`/${locale}/product/${product.slug}`);
-    }
-
-    // Also revalidate product listing pages
-    for (const locale of locales) {
-      paths.push(`/${locale}/product`);
-    }
-
-    return paths;
+  async revalidateProduct(slug: string | undefined, locale: string | undefined): Promise<void> {
+    await this.revalidate({
+      type: 'product',
+      slug,
+      locale,
+    });
   }
 
   /**
-   * Generate revalidation paths for a Brand entity
+   * Revalidate a brand entity
    */
-  getBrandPaths(brand: any, locales: string[]): string[] {
-    const paths: string[] = [];
-
-    if (!brand.slug) {
-      return paths;
-    }
-
-    // Generate paths for all locales
-    for (const locale of locales) {
-      paths.push(`/${locale}/brand/${brand.slug}`);
-    }
-
-    return paths;
+  async revalidateBrand(slug: string | undefined, locale: string | undefined): Promise<void> {
+    await this.revalidate({
+      type: 'brand',
+      slug,
+      locale,
+    });
   }
 
   /**
-   * Generate revalidation paths for a Case Study entity
+   * Revalidate a case study entity
    */
-  getCaseStudyPaths(caseStudy: any, locales: string[]): string[] {
-    const paths: string[] = [];
-
-    if (!caseStudy.slug) {
-      return paths;
-    }
-
-    // Generate paths for all locales
-    for (const locale of locales) {
-      paths.push(`/${locale}/finished-works/${caseStudy.slug}`);
-    }
-
-    // Also revalidate listing page
-    for (const locale of locales) {
-      paths.push(`/${locale}/finished-works`);
-    }
-
-    return paths;
+  async revalidateCaseStudy(slug: string | undefined, locale: string | undefined): Promise<void> {
+    await this.revalidate({
+      type: 'case-study',
+      slug,
+      locale,
+    });
   }
 
   /**
-   * Generate revalidation paths for Accessories
+   * Revalidate home page
    */
-  getAccessoryPaths(accessory: any, locales: string[]): string[] {
-    const paths: string[] = [];
-
-    // Revalidate accessories page for all locales
-    for (const locale of locales) {
-      paths.push(`/${locale}/accessories`);
-    }
-
-    return paths;
+  async revalidateHome(locale?: string): Promise<void> {
+    await this.revalidate({
+      type: 'home',
+      locale,
+    });
   }
 
   /**
-   * Generate revalidation paths for Gallery
+   * Revalidate all pages (use with caution)
    */
-  getGalleryPaths(gallery: any, locales: string[]): string[] {
-    const paths: string[] = [];
-
-    // Revalidate gallery page for all locales
-    for (const locale of locales) {
-      paths.push(`/${locale}/gallery`);
-    }
-
-    return paths;
-  }
-
-  /**
-   * Generate revalidation paths for Glasses
-   */
-  getGlassesPaths(glasses: any, locales: string[]): string[] {
-    const paths: string[] = [];
-
-    // Revalidate glasses page for all locales
-    for (const locale of locales) {
-      paths.push(`/${locale}/glasses`);
-    }
-
-    return paths;
-  }
-
-  /**
-   * Generate revalidation paths for global data changes
-   * (e.g., colors, hardware items that affect multiple products)
-   */
-  getGlobalPaths(locales: string[]): string[] {
-    const paths: string[] = [];
-
-    // Revalidate home and main listing pages
-    for (const locale of locales) {
-      paths.push(`/${locale}`);
-      paths.push(`/${locale}/product`);
-    }
-
-    return paths;
-  }
-}
-
-/**
- * Get all available locales from Strapi
- */
-export async function getAvailableLocales(strapi: Core.Strapi): Promise<string[]> {
-  try {
-    const locales = await strapi.plugin('i18n').service('locales').find();
-    return locales.map((locale: any) => locale.code);
-  } catch (error) {
-    console.error('[Revalidation] Error fetching locales, using default:', error);
-    return ['en']; // Fallback to English
+  async revalidateAll(): Promise<void> {
+    await this.revalidate({
+      type: 'all',
+    });
   }
 }
 
@@ -205,11 +121,11 @@ export async function getAvailableLocales(strapi: Core.Strapi): Promise<string[]
  */
 export function createRevalidationService(): RevalidationService {
   const frontendUrl = process.env.FRONTEND_URL || '';
-  const revalidateSecret = process.env.REVALIDATE_SECRET;
+  const revalidateToken = process.env.REVALIDATE_TOKEN;
 
   return new RevalidationService({
     frontendUrl,
-    revalidateSecret,
+    revalidateToken,
   });
 }
 

@@ -1,6 +1,6 @@
 # ISR Revalidation Setup
 
-This document explains how to set up Incremental Static Regeneration (ISR) revalidation between your Strapi CMS and Next.js frontend.
+This document explains how ISR (Incremental Static Regeneration) revalidation works between your Strapi CMS and Next.js frontend.
 
 ## Overview
 
@@ -10,99 +10,56 @@ When content is created, updated, or deleted in Strapi, lifecycle hooks automati
 
 ### 1. Configure Strapi Environment Variables
 
-Add the following variables to your `.env` file:
+The `.env.example` file already includes the required configuration. Create a `.env` file with:
 
 ```env
 # URL of your Next.js frontend
 FRONTEND_URL=http://localhost:3000
 
-# Optional: Secret token for securing revalidation requests
-REVALIDATE_SECRET=your_secret_token_here
+# Bearer token for securing revalidation requests
+REVALIDATE_TOKEN=your_revalidate_token_here
 ```
 
 For production:
 ```env
 FRONTEND_URL=https://your-frontend-domain.com
-REVALIDATE_SECRET=a_strong_random_secret
+REVALIDATE_TOKEN=a_strong_random_token
 ```
 
-### 2. Create Next.js Revalidate API Route
+### 2. Next.js Revalidate API Route
 
-In your Next.js project, create `app/api/revalidate/route.ts`:
+Your Next.js frontend already has the revalidate API route at `app/api/revalidate/route.ts`. The Strapi backend is configured to work with your existing API structure:
 
-```typescript
-import { NextRequest, NextResponse } from 'next/server';
-import { revalidatePath } from 'next/cache';
+- **Endpoint**: `POST /api/revalidate`
+- **Authentication**: `Authorization: Bearer ${REVALIDATE_TOKEN}`
+- **Payload**: `{ type, slug, locale }`
 
-export async function POST(request: NextRequest) {
-  try {
-    // Optional: Verify secret token
-    const secret = request.headers.get('x-revalidate-secret');
-    if (process.env.REVALIDATE_SECRET && secret !== process.env.REVALIDATE_SECRET) {
-      return NextResponse.json({ message: 'Invalid secret' }, { status: 401 });
-    }
+### 3. Ensure Environment Variables Match
 
-    const body = await request.json();
-    const { paths, entityType, entityId, locale } = body;
-
-    if (!paths || !Array.isArray(paths)) {
-      return NextResponse.json({ message: 'Invalid paths' }, { status: 400 });
-    }
-
-    console.log(`[Revalidate] Entity: ${entityType}, ID: ${entityId}, Locale: ${locale}`);
-    console.log(`[Revalidate] Paths:`, paths);
-
-    // Revalidate all specified paths
-    for (const path of paths) {
-      await revalidatePath(path);
-      console.log(`[Revalidate] ✓ ${path}`);
-    }
-
-    return NextResponse.json({
-      revalidated: true,
-      paths,
-      now: Date.now(),
-    });
-  } catch (err) {
-    console.error('[Revalidate] Error:', err);
-    return NextResponse.json(
-      { message: 'Error revalidating', error: String(err) },
-      { status: 500 }
-    );
-  }
-}
-```
-
-### 3. Add Environment Variable to Next.js
-
-In your Next.js `.env.local`:
+In your Next.js `.env.local`, make sure the token matches:
 
 ```env
-# Match the secret from Strapi
-REVALIDATE_SECRET=your_secret_token_here
+# Must match the token in Strapi's .env
+REVALIDATE_TOKEN=your_revalidate_token_here
 ```
 
 ## Supported Entities
 
 The following entities trigger revalidation:
 
-### Dynamic Routes
-- **Product**: `/{locale}/product/{slug}`
-- **Brand**: `/{locale}/brand/{slug}`
-- **Case Study**: `/{locale}/finished-works/{slug}`
+### Entities with Dynamic Routes (send type, slug, locale)
+- **Product** → Sends `{ type: 'product', slug, locale }`
+- **Brand** → Sends `{ type: 'brand', slug, locale }`
+- **Case Study** → Sends `{ type: 'case-study', slug, locale }`
 
-### List Pages
-- **Accessories**: `/{locale}/accessories`
-- **Gallery**: `/{locale}/gallery`
-- **Product Listing**: `/{locale}/product`
-- **Finished Works**: `/{locale}/finished-works`
-
-### Global Changes
-Changes to these entities revalidate the home page and product listings:
-- Color
-- Hardware Item
-- Product Category
-- Product Type
+### Entities that Revalidate Home Page (send type: 'home')
+These entities trigger home page revalidation since they affect global content:
+- **Accessory** → Sends `{ type: 'home', locale }`
+- **Gallery** → Sends `{ type: 'home' }`
+- **Color** → Sends `{ type: 'home' }`
+- **Hardware Item** → Sends `{ type: 'home' }`
+- **Product Category** → Sends `{ type: 'home', locale }`
+- **Product Type** → Sends `{ type: 'home', locale }`
 
 ## How It Works
 
@@ -118,28 +75,28 @@ Changes to these entities revalidate the home page and product listings:
          │
          ▼
 ┌─────────────────┐
-│  Revalidation   │  3. Generate paths to revalidate
+│  Revalidation   │  3. Send { type, slug, locale }
 │     Service     │
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│   Next.js API   │  4. POST /api/revalidate
+│   Next.js API   │  4. POST /api/revalidate with Bearer token
 │  /api/revalidate│
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│  revalidatePath │  5. Next.js regenerates ISR pages
+│  revalidatePath │  5. Next.js determines paths and regenerates
 └─────────────────┘
 ```
 
 ## Locale Handling
 
-The system automatically fetches all configured locales from Strapi's i18n plugin and generates revalidation paths for each locale. For example, if you have English (en) and German (de) locales, updating a product will revalidate:
+Each entity includes its locale in the revalidation request. Your Next.js API route uses this locale to determine which paths to revalidate. For example:
 
-- `/en/product/my-product`
-- `/de/product/my-product`
+- Product update → `{ type: 'product', slug: 'my-product', locale: 'en' }`
+- Next.js revalidates → `/en/product/my-product` and `/en` (home page)
 
 ## Testing
 
@@ -154,18 +111,13 @@ When Strapi starts, you should see:
 
 Create or update a product in Strapi admin panel. Check logs for:
 ```
-[Revalidation] Calling http://localhost:3000/api/revalidate with paths: [...]
-[Revalidation] Success: {...}
+[Revalidation] Calling http://localhost:3000/api/revalidate with type: product, slug: my-product, locale: en
+[Revalidation] Success: { revalidated: true, type: 'product', ... }
 ```
 
 ### 3. Verify Next.js
 
-Check your Next.js logs for:
-```
-[Revalidate] Entity: product, ID: 123, Locale: en
-[Revalidate] Paths: [ '/en/product/my-product', ... ]
-[Revalidate] ✓ /en/product/my-product
-```
+Check your Next.js logs for successful revalidation based on your API route's logging.
 
 ## Troubleshooting
 
@@ -177,7 +129,7 @@ Check your Next.js logs for:
 
 ### 401 Unauthorized
 
-The `REVALIDATE_SECRET` doesn't match between Strapi and Next.js. Ensure both have the same value.
+The `REVALIDATE_TOKEN` doesn't match between Strapi and Next.js. Ensure both have the same value.
 
 ### CORS Issues
 
@@ -192,39 +144,57 @@ If your frontend is on a different domain, you may need to configure CORS in Nex
 
 ## Security
 
-- Always use `REVALIDATE_SECRET` in production
+- Always use `REVALIDATE_TOKEN` in production
 - Use HTTPS for production environments
 - Consider IP allowlisting for additional security
-- The secret is checked via the `x-revalidate-secret` header
+- The token is sent via the `Authorization: Bearer ${token}` header
 
 ## Customization
 
-To add revalidation for additional entities or custom paths, edit:
+To add revalidation for additional entities, edit:
 
-1. `src/utils/revalidation.ts` - Add new path generator methods
-2. `src/index.ts` - Add new lifecycle hook subscriptions
-
-Example for a new entity:
+1. **For entities with slugs** (like products, brands):
 
 ```typescript
-// In src/utils/revalidation.ts
-getMyEntityPaths(entity: any, locales: string[]): string[] {
-  const paths: string[] = [];
-  for (const locale of locales) {
-    paths.push(`/${locale}/my-entity/${entity.slug}`);
-  }
-  return paths;
+// In src/utils/revalidation.ts - Add a new method
+async revalidateMyEntity(slug: string | undefined, locale: string | undefined): Promise<void> {
+  await this.revalidate({
+    type: 'my-entity',
+    slug,
+    locale,
+  });
 }
 
-// In src/index.ts
+// In src/index.ts - Add lifecycle hooks
 strapi.db.lifecycles.subscribe({
   models: ['api::my-entity.my-entity'],
   async afterCreate(event) {
     const { result } = event;
-    await triggerRevalidation(result, 'my-entity', (entity, locales) =>
-      revalidationService.getMyEntityPaths(entity, locales)
-    );
+    await revalidationService.revalidateMyEntity(result.slug, result.locale);
+  },
+  async afterUpdate(event) {
+    const { result } = event;
+    await revalidationService.revalidateMyEntity(result.slug, result.locale);
+  },
+  async afterDelete(event) {
+    const { result } = event;
+    await revalidationService.revalidateMyEntity(result.slug, result.locale);
+  },
+});
+```
+
+2. **For entities without slugs** (that should trigger home page revalidation):
+
+```typescript
+// In src/index.ts - Use revalidateHome()
+strapi.db.lifecycles.subscribe({
+  models: ['api::my-entity.my-entity'],
+  async afterCreate(event) {
+    const { result } = event;
+    await revalidationService.revalidateHome(result.locale);
   },
   // ... afterUpdate, afterDelete
 });
 ```
+
+3. **Update your Next.js API route** to handle the new entity type in the switch statement.
